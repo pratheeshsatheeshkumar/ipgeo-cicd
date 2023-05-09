@@ -1,0 +1,90 @@
+--- 
+- name: "Building docker image from github repo"
+  hosts: build
+  become: true
+  vars_files: 
+    - dockercred.vars
+  vars:  
+    packages: 
+      - git 
+      - pip
+      - docker
+    project_repo_url: "https://github.com/pratheeshsatheeshkumar/ipgeo-container.git"
+    clone_repo_path: "/var/flask_app/"
+    docker_image_name: "pratheeshsatheeshkumar/ipgeo_container_test"
+
+  tasks:
+    - name: "Build: installing packages"
+      yum:
+        name: "{{ packages }}"
+        state: present
+   
+    - name : "Build: add ec2-user to docker group"
+      user:
+        name: "ec2-user"
+        group: "docker"
+        shell: "/bin/bash"
+        append: true
+   
+    - name: " Build: installing python extension for docker "
+      pip:
+        name: "docker-py"
+        state: present
+   
+    - name: "Build: Restarting docker service"
+      service:
+        name: "docker"
+        state: restarted
+        enabled: true
+   
+    - name: "Build: creating git clone directory"
+      file: 
+        path: "{{ clone_repo_path }}"
+        state: directory 
+   
+    - name: "Build: Cloning repo"
+      git:
+        repo: "{{ project_repo_url }}"
+        dest: "{{ clone_repo_path }}"
+      register: git_clone_status
+   
+    - debug:
+        msg: "git_clone_status is {{ git_clone_status }}" 
+    
+    - name: "Build: Login to docker hub"
+      when: git_clone_status.changed
+      docker_login:
+          username: "{{ docker_username }}"
+          password: "{{ docker_password }}"
+   
+    - name: "Build: Building docker image and push to docker hub"
+      when: git_clone_status.changed
+      docker_image:
+        source: build
+        build:
+          path: "{{ clone_repo_path }}"
+          pull: true
+        name: "{{ docker_image_name }}"
+        tag: "{{ item }}"
+        push: true
+        force_tag: true
+        force_source: true
+      with_items:
+        - latest
+        - "{{ git_clone_status.after }}"
+    
+    - name: "Build: remove image from build server"
+      when: git_clone_status.changed
+      docker_image:
+        name: "{{ docker_image_name }}"
+        tag: "{{ item }}"
+        state: absent
+      with_items:
+        - latest
+        - "{{ git_clone_status.after }}"
+
+    - name: "Build: log out of docker hub"    
+      docker_login:
+        state: absent
+        
+

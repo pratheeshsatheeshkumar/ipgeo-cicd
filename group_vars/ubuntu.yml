@@ -1,0 +1,11 @@
+---
+apache2_owner: "www-data"
+apache2_group: "www-data"
+apache2_domain: "blog.pratheeshsatheeshkumar.online"
+apache2_port: 80
+apache2_docroot: "/var/www/"
+mysql_root_password: "mysqlroot123"
+mysql_extra_user: "bloguser"
+mysql_extra_user_password: "bloguser123"
+mysql_extra_database: "blogdatabase"
+wp_url: "https://wordpress.org/wordpress-6.0.3.tar.gz"
