@@ -1,0 +1,77 @@
+---       
+- name: "Running images on test server"
+  become: true
+  hosts: test
+  vars:
+    docker_image_name: "pratheeshsatheeshkumar/ipgeo_container_test" 
+    packages: 
+      - python
+      - docker
+      - pip 
+  tasks:
+
+    - name: "Test: Installing packages"
+      yum:
+        name: "{{ packages }}"
+        state: present
+
+
+    - name: "Test: Adding ec2-user tp docker group"
+      user:
+        name: "ec2-user"
+        groups: "docker"
+        shell: "/bin/bash"
+        append: true
+
+
+    - name: "Test: Install docker-py docker extention for python"
+      pip:
+        name: "docker-py"
+        state: present
+
+
+    - name: "Test: Restarting docker service"
+      service:
+        name: docker
+        state: restarted
+        enabled: true
+  
+
+    - name: pull an image
+      docker_image:
+        name: "{{ docker_image_name }}"
+        source: pull
+        force_source: true
+      register: image_status  
+    - name: Remove container if already running
+      docker_container:
+        name: ipgeolocation-api-1
+        state: absent 
+    - name: Create docker network
+      docker_network:
+        name: ipgeolocnw
+        state: present   
+    - name: Run redis container
+      docker_container:
+        name: ipgeolocation-redis
+        image: "redis:latest"
+        pull: true
+        networks:
+          - name: ipgeolocnw         
+    - name: Create ipgeolocation-api-1 container
+      when: image_status.changed
+      docker_container:
+        name: ipgeolocation-api-1
+        image: "{{ docker_image_name }}:latest"
+        recreate: true #Use with present and started states to force the re-creation of an existing container.
+        pull: true # If true, always pull the latest version of an image. 
+        published_ports: "80:8080"
+        env:
+          REDIS_PORT: "6379" 
+          REDIS_HOST: "ipgeolocation-redis" 
+          APP_PORT: "8080" 
+          CONTAINER_NAME: "ipgeolocation-api-1"
+        networks: 
+          - name: ipgeolocnw
+    
+
