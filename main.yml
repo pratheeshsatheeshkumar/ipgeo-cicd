@@ -1,0 +1,19 @@
+--- 
+- name: "Building docker image from github repo and deploy the container in a test server"
+  hosts: build
+  become: true
+  vars_files: 
+    - dockercred.vars
+  vars:  
+    packages: 
+      - git 
+      - pip
+      - docker
+    project_repo_url: "https://github.com/pratheeshsatheeshkumar/ipgeo-container.git"
+    clone_repo_path: "/var/flask_app/"
+    docker_image_name: "pratheeshsatheeshkumar/ipgeo_container_test"
+  tasks:
+    - include_tasks: build_docker_image.yml
+    - include_tasks: test_docker_container.yml
+      when: hub_image_create.changed 
+
